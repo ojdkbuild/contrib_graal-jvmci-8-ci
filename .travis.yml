@@ -1,0 +1,104 @@
+# Copyright 2018, akashche at redhat.com
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+language: cpp
+
+sudo: required
+
+services:
+  - docker
+
+os:
+  - linux
+
+env:
+  global:
+    - OJDK_MILESTONE=ojdkbuild
+
+before_install:
+  - set -e
+  - export OJDK_JVMCI_TAG=`git describe --exact-match --tags HEAD`
+  - if [ -z ${OJDK_JVMCI_TAG} ] ; then exit 1 ; fi
+  - export OJDK_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' awk '{print $1}'`
+  - export JVMCI_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' awk '{print $2}'`
+  - export OJDK_UPDATE=`echo ${OJDK_TAG} | sed 's/-/ /' | awk '{print substr($1,6)}'`
+  - export OJDK_BUILD=`echo ${OJDK_TAG} | sed 's/-/ /' | awk '{print substr($2,2)}'`
+  - export OJDK_JVMCI_IMAGE=jdk-8u${OJDK_UPDATE}-jvmci-${OJDK_MILESTONE}-linux-x64
+  - export D="docker exec builder"
+  - docker pull centos:6
+  - docker run
+            -id
+            --name builder
+            -w /opt
+            -v `pwd`:/host
+            centos:6 bash
+
+install:
+  - $D yum install -y
+            which
+            zip
+            unzip
+            gcc-c++
+            git
+
+before_script:
+  # jdk
+  - $D curl -LO https://github.com/ojdkbuild/contrib_jdk8u-ci/releases/download/${OJDK_TAG}/jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64.zip
+  - $D unzip -q jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64.zip
+  - $D mv jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64 ${OJDK_JVMCI_IMAGE}
+  # mx
+  - $D git clone https://github.com/graalvm/mx.git
+  - $D ln -s /opt/mx/mx /usr/local/bin/mx
+  # graal-jvmci-8
+  - $D git clone https://github.com/graalvm/graal-jvmci-8.git
+  - $D bash -c "cd graal-jvmci-8 && git checkout ${JVMCI_TAG}"
+
+script:
+  - $D mx
+        --primary-suite graal-jvmci-8
+        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --vm=server
+        build
+  - $D mx
+        --primary-suite graal-jvmci-8
+        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --vm=server
+        -v
+        vm -version
+  - $D mx
+        --primary-suite graal-jvmci-8
+        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --vm=server
+        -v
+        unittest
+  - $D zip -qyr9 ${OJDK_JVMCI_IMAGE}.zip ${OJDK_JVMCI_IMAGE}
+  - $D mv ${OJDK_JVMCI_IMAGE}.zip /host/
+  - sha256sum ${OJDK_JVMCI_IMAGE}.zip > ${OJDK_JVMCI_IMAGE}.zip.sha256
+
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key:
+    secure: me42jAPRzbnmdFIWkoRc2dRWTLJJUY6Ug/0/IKcJ5WmlMnoF3HIf4uxPoXDRpmjOI0g0Sb8OMDtlq1jy1VP2c7aL6AMXjBwUz4dUA3etMe3u8DxN5P27QTV3p2Wuxgs2Z9vhiXGEnSLI1bTC7rAsWaUQ3FH4D4f/qJDAgdfw7C1s58VyxenH83NDGzOQS+8Wywn5b4Fq6JtWj4/hxzpL358ScyU6+p0u47h0DvqgXcmN8PofRiN392hqbMraxJhmr25DMy1jqBur46mM7cQJOObrvM74WOz+i+dKBbYkVASZjmJ99AMqp/tR2uUvVaEX0vogFNjvSIZEpkO+X7t4ThyBeHW9I/2CpVpRAuQbyF2BBgAF/U152XXvxu/NdULLRfSgaP9KC6C/li5ckpRApllpwkF6B12eSw1DgAFpf3Mfhb6Xrq7g83mV4BJfeUWgTUY4KYKiX7sA0SrcSA16OpyMSzNqn5X2BXTzhzfxt2xVeL9cvHl1FrhhwaGoiYIUOI3Yha9xtpRhhweMn+mvny8Qh1WnB8592QrKANtCw6Bag2MZhPvN5I6i04TPJhloybirf+AM+YA+NiIF2N+h+s4Fzi9v+D2/PX0weTRkSDQsortO0uOUQ4ujjq24G/wVUiXO0Ax66cI4F50ymnLFRwtNzR4F2/Br1fQAOX/5ngQ=
+  file:
+    - ${OJDK_JVMCI_IMAGE}.zip
+    - ${OJDK_JVMCI_IMAGE}.zip.sha256
+  on:
+    repo: ojdkbuild/contrib_graal-jvmci-8-ci
+    tags: true
+
+notifications:
+  email:
+    on_success: always
+
