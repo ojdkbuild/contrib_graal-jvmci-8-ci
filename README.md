@@ -1,7 +1,7 @@
 OpenJDK 8 Linux builds with support for JVMCI
 =============================================
 
-[![travis](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci.svg?branch=jdk8u171-b11_jvmci-0.46)](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci/builds)
+[![travis](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci.svg?branch=jdk8u172-b11_jvmci-0.46)](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci/builds)
 
 OpenJDK 8 builds with support for [JEP 243](http://openjdk.java.net/jeps/243) done on Travis CI - [downloads](https://github.com/ojdkbuild/contrib_graal-jvmci-8-ci/releases).
 
