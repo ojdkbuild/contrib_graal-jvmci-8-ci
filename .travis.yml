@@ -30,11 +30,12 @@ before_install:
   - set -e
   - export OJDK_JVMCI_TAG=`git describe --exact-match --tags HEAD`
   - if [ -z ${OJDK_JVMCI_TAG} ] ; then exit 1 ; fi
-  - export OJDK_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' awk '{print $1}'`
-  - export JVMCI_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' awk '{print $2}'`
+  - export OJDK_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' | awk '{print $1}'`
+  - export JVMCI_TAG=`echo ${OJDK_JVMCI_TAG} | sed 's/_/ /g' | awk '{print $2}'`
   - export OJDK_UPDATE=`echo ${OJDK_TAG} | sed 's/-/ /' | awk '{print substr($1,6)}'`
   - export OJDK_BUILD=`echo ${OJDK_TAG} | sed 's/-/ /' | awk '{print substr($2,2)}'`
-  - export OJDK_JVMCI_IMAGE=jdk-8u${OJDK_UPDATE}-jvmci-${OJDK_MILESTONE}-linux-x64
+  - export OJDK_IMAGE=jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64
+  - export OJDK_JVMCI_IMAGE=jdk-8u${OJDK_UPDATE}-${JVMCI_TAG}-${OJDK_MILESTONE}-linux-x64
   - export D="docker exec builder"
   - docker pull centos:6
   - docker run
@@ -42,46 +43,56 @@ before_install:
             --name builder
             -w /opt
             -v `pwd`:/host
+            -e PERL5LIB=/opt/rh/devtoolset-6/root//usr/lib64/perl5/vendor_perl:/opt/rh/devtoolset-6/root/usr/lib/perl5:/opt/rh/devtoolset-6/root//usr/share/perl5/vendor_perl
+            -e LD_LIBRARY_PATH=/opt/rh/httpd24/root/usr/lib64:/opt/rh/python27/root/usr/lib64
+            -e PKG_CONFIG_PATH=/opt/rh/python27/root/usr/lib64/pkgconfig
+            -e PATH=/opt/rh/rh-git29/root/usr/bin:/opt/rh/python27/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/mx
+            -e OJDK_IMAGE=${OJDK_IMAGE}
+            -e OJDK_JVMCI_IMAGE=${OJDK_JVMCI_IMAGE}
             centos:6 bash
 
 install:
   - $D yum install -y
-            which
-            zip
-            unzip
-            gcc-c++
-            git
+        centos-release-scl-rh
+  - $D yum install -y
+        python27
+        rh-git29
+        which
+        zip
+        unzip
+        gcc-c++
+        git
 
 before_script:
   # jdk
-  - $D curl -LO https://github.com/ojdkbuild/contrib_jdk8u-ci/releases/download/${OJDK_TAG}/jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64.zip
-  - $D unzip -q jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64.zip
-  - $D mv jdk-8u${OJDK_UPDATE}-ojdkbuild-linux-x64 ${OJDK_JVMCI_IMAGE}
+  - $D curl -LO https://github.com/ojdkbuild/contrib_jdk8u-ci/releases/download/${OJDK_TAG}/${OJDK_IMAGE}.zip
+  - $D unzip -q ${OJDK_IMAGE}.zip
   # mx
   - $D git clone https://github.com/graalvm/mx.git
-  - $D ln -s /opt/mx/mx /usr/local/bin/mx
   # graal-jvmci-8
   - $D git clone https://github.com/graalvm/graal-jvmci-8.git
-  - $D bash -c "cd graal-jvmci-8 && git checkout ${JVMCI_TAG}"
+  - $D git -C graal-jvmci-8 checkout ${JVMCI_TAG}
 
 script:
   - $D mx
         --primary-suite graal-jvmci-8
-        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --java-home /opt/${OJDK_IMAGE}
         --vm=server
         build
+        -DFULL_DEBUG_SYMBOLS=0
   - $D mx
         --primary-suite graal-jvmci-8
-        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --java-home /opt/${OJDK_IMAGE}
         --vm=server
         -v
         vm -version
   - $D mx
         --primary-suite graal-jvmci-8
-        --java-home /opt/${OJDK_JVMCI_IMAGE}
+        --java-home /opt/${OJDK_IMAGE}
         --vm=server
         -v
         unittest
+  - $D bash -c 'mv $(mx --primary-suite graal-jvmci-8 --java-home /opt/${OJDK_IMAGE} jdkhome) ${OJDK_JVMCI_IMAGE}'
   - $D zip -qyr9 ${OJDK_JVMCI_IMAGE}.zip ${OJDK_JVMCI_IMAGE}
   - $D mv ${OJDK_JVMCI_IMAGE}.zip /host/
   - sha256sum ${OJDK_JVMCI_IMAGE}.zip > ${OJDK_JVMCI_IMAGE}.zip.sha256
