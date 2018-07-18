@@ -1,0 +1,87 @@
+# Copyright 2018, akashche at redhat.com
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+image: Visual Studio 2013
+
+clone_folder: c:\projects\contrib_graal-jvmci-8-ci
+
+build: off
+
+install:
+  - cd "c:/projects"
+  - if [%APPVEYOR_REPO_TAG_NAME%] == [] ( exit /b 1 )
+  - echo %APPVEYOR_REPO_TAG_NAME%
+  - robocopy "contrib_graal-jvmci-8-ci/support" support /e /nfl /ndl /njh /njs /nc /ns /np || true
+  - for /f "tokens=* USEBACKQ" %%a in (
+    `python "support/regex.py" "^jdk8u(\d+)-.*$" %APPVEYOR_REPO_TAG_NAME%`
+    ) do (set JDK_UPDATE=%%a)
+  - echo %JDK_UPDATE%
+  - for /f "tokens=* USEBACKQ" %%a in (
+    `python "support/regex.py" "^.*-b(\d+)_.*$" %APPVEYOR_REPO_TAG_NAME%`
+    ) do (set JDK_BUILD=%%a)
+  - echo %JDK_BUILD%
+  - for /f "tokens=* USEBACKQ" %%a in (
+    `python "support/regex.py" "^.*_jvmci-([0-9\.]+)$" %APPVEYOR_REPO_TAG_NAME%`
+    ) do (set JVMCI_VERSION=%%a)
+  - echo %JVMCI_VERSION%
+  - set JDK_IMAGE=java-1.8.0-openjdk-1.8.0.%JDK_UPDATE%-1.b%JDK_BUILD%.ojdkbuild.windows.x86_64
+  - set JDK_JVMCI_IMAGE=jdk-8u%JDK_UPDATE%-jvmci-%JVMCI_VERSION%-ojdkbuild-windows-x64
+  - git clone https://github.com/staticlibs/tools_windows_curl.git curl
+  - git clone https://github.com/ojdkbuild/tools_zip.git zip
+  - git clone https://github.com/staticlibs/tools_windows_python27.git python27
+  - git clone https://github.com/graalvm/mx.git
+  - cd "c:/"
+  - rd /s /q cygwin
+  - rd /s /q cygwin64
+  - git clone https://github.com/ojdkbuild/tools_cygwin64.git cygwin
+  - set PATH=C:/windows/system32;C:/windows;C:/windows/System32/Wbem;C:\Program Files\Git\cmd
+  - cd "C:/Program Files/Microsoft SDKs/Windows/v7.1/Bin"
+  - SetEnv.Cmd /release /x64
+  - cd "c:/projects"
+  - set PATH=%PATH%;c:/projects/curl/bin;c:/projects/zip;c:/projects/python27;c:/projects/mx;c:/cygwin/bin
+  - curl -LO https://github.com/ojdkbuild/ojdkbuild/releases/download/1.8.0.%JDK_UPDATE%-1/%JDK_IMAGE%.zip
+  - unzip -q %JDK_IMAGE%.zip
+
+build_script:
+  - git clone https://github.com/akashche/graal-jvmci-8.git
+  - git -C graal-jvmci-8 checkout jvmci-%JVMCI_VERSION%-win
+  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% --vm=server build
+  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% -v vm -version
+  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% unittest
+  - for /f "tokens=* USEBACKQ" %%a in (
+    `mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% jdkhome`
+    ) do (set JDK_JVMCI_PATH=%%a)
+  - robocopy %JDK_JVMCI_PATH% %JDK_JVMCI_IMAGE% /e /mov /nfl /ndl /njh /njs /nc /ns /np || true
+  - zip -r %JDK_JVMCI_IMAGE%.zip %JDK_JVMCI_IMAGE%
+  - python support\sha256.py %JDK_JVMCI_IMAGE%.zip > %JDK_JVMCI_IMAGE%.zip.sha256
+  - robocopy "c:/projects" "c:/projects/contrib_graal-jvmci-8-ci" %JDK_JVMCI_IMAGE%.zip /mov /nfl /ndl /njh /njs /nc /ns /np || true
+  - robocopy "c:/projects" "c:/projects/contrib_graal-jvmci-8-ci" %JDK_JVMCI_IMAGE%.zip.sha256 /mov /nfl /ndl /njh /njs /nc /ns /np || true
+
+artifacts:
+  - path: '%JDK_JVMCI_IMAGE%.zip'
+    name: '%JDK_JVMCI_IMAGE%.zip'
+  - path: '%JDK_JVMCI_IMAGE%.zip.sha256'
+    name: '%JDK_JVMCI_IMAGE%.zip.sha256'
+
+deploy:
+  description: '%APPVEYOR_REPO_TAG_NAME%'
+  provider: GitHub
+  auth_token:
+    secure: I2OLlpPGfFN5dZqdv9MiCUgXVSa0hgzW/QjVQt8aQ+tRoa7R6ijCrsxHR30iNMai
+  artifact: '%JDK_JVMCI_IMAGE%.zip,%JDK_JVMCI_IMAGE%.zip.sha256'
+  draft: false
+  prerelease: false
+  on:
+    branch: master
+    appveyor_repo_tag: true 
