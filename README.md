@@ -8,7 +8,7 @@ OpenJDK 8 Linux and Windows builds with support for JVMCI
 
 OpenJDK 8 builds with support for [JEP 243](http://openjdk.java.net/jeps/243).
 
-Linux builds are done on Travis CI on CentOS 6 for better compatibility with various Linux distributions.
+Linux builds are done on Travis CI using CentOS 6 for better compatibility with various Linux distributions.
 
 Windows builds are done on AppVeyor.
 
