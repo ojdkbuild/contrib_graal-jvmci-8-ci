@@ -45,7 +45,7 @@ install:
   - rd /s /q cygwin
   - rd /s /q cygwin64
   - git clone https://github.com/ojdkbuild/tools_cygwin64.git cygwin
-  - set PATH=C:/windows/system32;C:/windows;C:/windows/System32/Wbem;C:\Program Files\Git\cmd
+  - set PATH=C:/windows/system32;C:/windows;C:/windows/System32/Wbem;C:/Program Files/Git/cmd
   - cd "C:/Program Files/Microsoft SDKs/Windows/v7.1/Bin"
   - SetEnv.Cmd /release /x64
   - cd "c:/projects"
@@ -56,15 +56,16 @@ install:
 build_script:
   - git clone https://github.com/akashche/graal-jvmci-8.git
   - git -C graal-jvmci-8 checkout jvmci-%JVMCI_VERSION%-win
-  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% --vm=server build
-  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% -v vm -version
-  - mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% unittest
+  - mx --primary-suite graal-jvmci-8 --java-home=c:/projects/%JDK_IMAGE% --vm=server build
+  - mx --primary-suite graal-jvmci-8 --java-home=c:/projects/%JDK_IMAGE% -v vm -version
+  - mx --primary-suite graal-jvmci-8 --java-home=c:/projects/%JDK_IMAGE% unittest
   - for /f "tokens=* USEBACKQ" %%a in (
-    `mx --primary-suite graal-jvmci-8 --java-home=c:\projects\%JDK_IMAGE% jdkhome`
+    `mx --primary-suite graal-jvmci-8 --java-home=c:/projects/%JDK_IMAGE% jdkhome`
     ) do (set JDK_JVMCI_PATH=%%a)
   - robocopy %JDK_JVMCI_PATH% %JDK_JVMCI_IMAGE% /e /mov /nfl /ndl /njh /njs /nc /ns /np || true
+  - robocopy %JDK_JVMCI_IMAGE%/jre/bin/server . jvm.pdb /mov /nfl /ndl /njh /njs /nc /ns /np || true
   - zip -r %JDK_JVMCI_IMAGE%.zip %JDK_JVMCI_IMAGE%
-  - python support\sha256.py %JDK_JVMCI_IMAGE%.zip > %JDK_JVMCI_IMAGE%.zip.sha256
+  - python support/sha256.py %JDK_JVMCI_IMAGE%.zip > %JDK_JVMCI_IMAGE%.zip.sha256
   - robocopy "c:/projects" "c:/projects/contrib_graal-jvmci-8-ci" %JDK_JVMCI_IMAGE%.zip /mov /nfl /ndl /njh /njs /nc /ns /np || true
   - robocopy "c:/projects" "c:/projects/contrib_graal-jvmci-8-ci" %JDK_JVMCI_IMAGE%.zip.sha256 /mov /nfl /ndl /njh /njs /nc /ns /np || true
 
