@@ -1,7 +1,7 @@
 OpenJDK 8 Linux and Windows builds with support for JVMCI
 =========================================================
 
-[![travis](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci.svg?branch=jdk8u181-b13_jvmci-0.45)](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci/builds)
+[![travis](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci.svg?branch=jdk8u181-b13_jvmci-0.46)](https://travis-ci.org/ojdkbuild/contrib_graal-jvmci-8-ci/builds)
 [![appveyor](https://ci.appveyor.com/api/projects/status/github/ojdkbuild/contrib_graal-jvmci-8-ci?svg=true)](https://ci.appveyor.com/project/ojdkbuild/contrib-graal-jvmci-8-ci)
 
 [Downloads for Linux and Windows](https://github.com/ojdkbuild/contrib_graal-jvmci-8-ci/releases).
